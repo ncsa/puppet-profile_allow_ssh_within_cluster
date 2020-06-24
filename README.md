@@ -1,6 +1,6 @@
 # profile_allow_ssh_within_cluster
 
-One line summary
+NCSA Common Puppet Profiles - allow passwordless ssh between nodes in a cluster
 
 ## Dependencies
 - [ncsa/sshd](https://github.com/ncsa/puppet-sshd)
