@@ -55,10 +55,10 @@ class profile_allow_ssh_within_cluster (
   $params = merge( $parms_local, $root, $groups )
 
   # update sshd_config & firewall
-  ::ssh::allow_from{ 'sshd allow within cluster':
-    hostlist              => $nodelist,
-    pam_access_groups     => $groups,
-    sshd_cfg_match_params => $params,
+  ::sshd::allow_from{ 'profile_allow_ssh_within_cluster':
+    hostlist                 => $nodelist,
+    groups                   => $groups,
+    additional_match_params  => $params,
   }
 
   # create ssh keys and authorized_keys
