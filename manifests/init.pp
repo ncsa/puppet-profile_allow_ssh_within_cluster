@@ -48,60 +48,62 @@ class profile_allow_ssh_within_cluster (
     $root = {}
   }
 
-  # create allow_groups
-  $groups = { 'AllowGroups' => $groups }
-
   # join the param hashes
-  $params = merge( $parms_local, $root, $groups )
+  $params = merge( $parms_local, $root )
 
   # update sshd_config & firewall
   ::sshd::allow_from{ 'profile_allow_ssh_within_cluster':
-    hostlist                 => $nodelist,
-    groups                   => $groups,
-    additional_match_params  => $params,
+    additional_match_params => $params,
+    groups                  => $groups,
+    hostlist                => $nodelist,
+    users                   => $users,
   }
 
   # create ssh keys and authorized_keys
-  $pubkey_parts=split( $ssh_public_key, ' ' )
-  $pk_type_raw = $pubkey_parts[0]
-  # make sure the filename matches something that ssh will expect
-  # since we aren't setting up a .ssh/config file
-  $pk_type = $pk_type_raw ? {
-    /(ecdsa)/   => $1,
-    /(dsa)/     => $1,
-    /(rsa)/     => $1,
-    /(ed25519)/ => $1,
-    default     => $pk_type_raw,
-  }
-  $pk_key  = $pubkey_parts[1]
-  $users.each | $user | {
-    $sshdir = $user ? {
-      'root'  => '/root/.ssh',
-      default => "/home/${user}/.ssh",
+  if $ssh_public_key =~ String[1] and $ssh_private_key =~ String[1] {
+    $pubkey_parts = split( $ssh_public_key, ' ' )
+    $pk_type_raw = $pubkey_parts[0]
+    # make sure the filename matches something that ssh will expect
+    # since we aren't setting up a .ssh/config file
+    $pk_type = $pk_type_raw ? {
+      /(ecdsa)/   => $1,
+      /(dsa)/     => $1,
+      /(rsa)/     => $1,
+      /(ed25519)/ => $1,
+      default     => $pk_type_raw,
     }
-    $sshkey_filename = "id_${pk_type}"
-    file {
-      $sshdir :
-        ensure => directory,
-        mode   => '0700',
-      ;
-      "${sshdir}/${sshkey_filename}" :
-        content => Sensitive($ssh_private_key),
-      ;
-      "${sshdir}/${sshkey_filename}.pub" :
-        content => $ssh_public_key,
-      ;
-      default:
-        ensure => present,
-        owner  => $user,
-        mode   => '0600'
-      ;
+    $pk_key  = $pubkey_parts[1]
+    $users.each | $user | {
+      $sshdir = $user ? {
+        'root'  => '/root/.ssh',
+        default => "/home/${user}/.ssh",
+      }
+      $sshkey_filename = "id_${pk_type}"
+      file {
+        $sshdir :
+          ensure => directory,
+          mode   => '0700',
+        ;
+        "${sshdir}/${sshkey_filename}" :
+          content => Sensitive($ssh_private_key),
+        ;
+        "${sshdir}/${sshkey_filename}.pub" :
+          content => $ssh_public_key,
+        ;
+        default:
+          ensure => present,
+          owner  => $user,
+          mode   => '0600'
+        ;
+      }
+      ssh_authorized_key { $user :
+        ensure => 'present',
+        user   => $user,
+        type   => $pubkey_parts[0],
+        key    => $pubkey_parts[1],
+      }
     }
-    ssh_authorized_key { $user :
-      ensure => 'present',
-      user   => $user,
-      type   => $pubkey_parts[0],
-      key    => $pubkey_parts[1],
-    }
+  } else {
+    notify {"Null public and/or private key, skipping key setup":}
   }
 }
