@@ -1,5 +1,2 @@
 ---
-profile_allow_ssh_within_cluster::groups: []
-profile_allow_ssh_within_cluster::ssh_private_key: ~
-profile_allow_ssh_within_cluster::ssh_public_key: ~
-profile_allow_ssh_within_cluster::users: []
+profile_allow_ssh_within_cluster::clusters: []

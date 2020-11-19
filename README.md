@@ -6,12 +6,13 @@ NCSA Common Puppet Profiles - allow passwordless ssh between nodes in a cluster
 - [ncsa/sshd](https://github.com/ncsa/puppet-sshd)
 
 ## Reference
-
-### class profile_allow_ssh_within_cluster (
+### define profile_allow_ssh_within_cluster::cluster (
 -  Array              $groups,
 -  Array              $nodelist,
 -  Optional[ String ] $ssh_private_key,
 -  Optional[ String ] $ssh_public_key,
--  Array              $users,
+-  Hash               $users,
+### class profile_allow_ssh_within_cluster (
+-  Array $clusters,
 
 See also: [REFERENCE.md](REFERENCE.md)

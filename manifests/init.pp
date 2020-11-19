@@ -1,109 +1,37 @@
-# @summary Configure public_key based ssh between all specified nodes
+# @summary Configure public_key based ssh between a list of nodes
 #
-# Configure sshd for hostbased access between specified nodes
-# using public key auth for all users specified.
+# @param clusters
+#   An array of hashes that conform to the parameters required by the
+#   profile_allow_ssh_within_cluster::cluster defined type.
 #
-# Create user ssh keys and authorized keys.
-#
-# Setup sshd_config.
-#
-# @param groups
-#   The UNIX / LDAP groups that can login.
 #   Default: (empty list)
 #
-# @param nodelist
-#   One or more hostnames / IPs / CIDRs.
-#   Cannot be empty.
+#   Example:
 #
-# @param users
-#   One or more LOCAL users.
-#   If 'root' is in users, passwordless root will be allowed.
-#   Default: (empty list)
-#
-# @param ssh_private_key
-#   Add this private key to all specified users.
-#   If empty, it is assumed user(s) will manage their own keys.
-#   Default: null
-#
-# @param ssh_public_key
-#   Add this public key to all specified users and users' authorized_keys file.
-#   If null, it is assumed user(s) will manage their own keys.
-#   Default: null
+#   ```
+#   profile_allow_ssh_within_cluster::clusters:
+#     - users:
+#         root:
+#       nodelist: "172.30.2.0/24"
+#       ssh_private_key: "...a private key as a string..."
+#       ssh_public_key: "...a public ssh key as a string..."
+#     - users:
+#         nova:
+#           home: "/var/lib/nova"
+#       nodelist: "172.30.2.0/24"
+#       ssh_private_key: "...a different private key as a string..."
+#       ssh_public_key: "...a different public ssh key as a string..."
+#   ```
 #
 class profile_allow_ssh_within_cluster (
-  Array              $groups,
-  Array              $nodelist,
-  Optional[ String ] $ssh_private_key,
-  Optional[ String ] $ssh_public_key,
-  Array              $users,
+  Array $clusters,
 ) {
-  $parms_local = {
-    'PubkeyAuthentication' => 'yes',
-  }
 
-  # check for root
-  if 'root' in $users {
-    $root = { 'PermitRootLogin' => 'without-password' }
-  } else {
-    $root = {}
-  }
-
-  # join the param hashes
-  $params = merge( $parms_local, $root )
-
-  # update sshd_config & firewall
-  ::sshd::allow_from{ 'profile_allow_ssh_within_cluster':
-    additional_match_params => $params,
-    groups                  => $groups,
-    hostlist                => $nodelist,
-    users                   => $users,
-  }
-
-  # create ssh keys and authorized_keys
-  if $ssh_public_key =~ String[1] and $ssh_private_key =~ String[1] {
-    $pubkey_parts = split( $ssh_public_key, ' ' )
-    $pk_type_raw = $pubkey_parts[0]
-    # make sure the filename matches something that ssh will expect
-    # since we aren't setting up a .ssh/config file
-    $pk_type = $pk_type_raw ? {
-      /(ecdsa)/   => $1,
-      /(dsa)/     => $1,
-      /(rsa)/     => $1,
-      /(ed25519)/ => $1,
-      default     => $pk_type_raw,
+  $clusters.each | $index, $data | {
+    profile_allow_ssh_within_cluster::cluster {
+      "profile_allow_ssh_within_cluster init ${index}" :
+        * =>  $data
     }
-    $pk_key  = $pubkey_parts[1]
-    $users.each | $user | {
-      $sshdir = $user ? {
-        'root'  => '/root/.ssh',
-        default => "/home/${user}/.ssh",
-      }
-      $sshkey_filename = "id_${pk_type}"
-      file {
-        $sshdir :
-          ensure => directory,
-          mode   => '0700',
-        ;
-        "${sshdir}/${sshkey_filename}" :
-          content => Sensitive($ssh_private_key),
-        ;
-        "${sshdir}/${sshkey_filename}.pub" :
-          content => $ssh_public_key,
-        ;
-        default:
-          ensure => present,
-          owner  => $user,
-          mode   => '0600'
-        ;
-      }
-      ssh_authorized_key { $user :
-        ensure => 'present',
-        user   => $user,
-        type   => $pubkey_parts[0],
-        key    => $pubkey_parts[1],
-      }
-    }
-  } else {
-    notify {"Null public and/or private key, skipping key setup":}
   }
+
 }

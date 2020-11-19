@@ -5,13 +5,53 @@
 
 **Classes**
 
-* [`profile_allow_ssh_within_cluster`](#profile_allow_ssh_within_cluster): Configure public_key based ssh between all specified nodes
+* [`profile_allow_ssh_within_cluster`](#profile_allow_ssh_within_cluster): Configure public_key based ssh between a list of nodes
+
+**Defined types**
+
+* [`profile_allow_ssh_within_cluster::cluster`](#profile_allow_ssh_within_clustercluster): Configure public_key based ssh between all specified nodes
 
 ## Classes
 
 ### profile_allow_ssh_within_cluster
 
-Configure sshd for hostbased access between specified nodes
+Configure public_key based ssh between a list of nodes
+
+#### Parameters
+
+The following parameters are available in the `profile_allow_ssh_within_cluster` class.
+
+##### `clusters`
+
+Data type: `Array`
+
+An array of hashes that conform to the parameters required by the
+profile_allow_ssh_within_cluster::cluster defined type.
+
+Default: (empty list)
+
+Example:
+
+```
+profile_allow_ssh_within_cluster::clusters:
+  - users:
+      root:
+    nodelist: "172.30.2.0/24"
+    ssh_private_key: "...a private key as a string..."
+    ssh_public_key: "...a public ssh key as a string..."
+  - users:
+      nova:
+        home: "/var/lib/nova"
+    nodelist: "172.30.2.0/24"
+    ssh_private_key: "...a different private key as a string..."
+    ssh_public_key: "...a different public ssh key as a string..."
+```
+
+## Defined types
+
+### profile_allow_ssh_within_cluster::cluster
+
+Configure sshd for access between specified nodes
 using public key auth for all users specified.
 
 Create user ssh keys and authorized keys.
@@ -20,7 +60,7 @@ Setup sshd_config.
 
 #### Parameters
 
-The following parameters are available in the `profile_allow_ssh_within_cluster` class.
+The following parameters are available in the `profile_allow_ssh_within_cluster::cluster` defined type.
 
 ##### `groups`
 
@@ -38,11 +78,28 @@ Cannot be empty.
 
 ##### `users`
 
-Data type: `Array`
+Data type: `Hash`
 
 One or more LOCAL users.
-If 'root' is in users, passwordless root will be allowed.
-Default: (empty list)
+
+Hash keys are usernames of local users.
+
+Leave hash values null to use common defaults.
+
+Use hash values to specify custom settings. Allowed keys are:
+- `home`
+
+Default: (empty hash)
+
+Example:
+
+```
+users:
+  root:     # defaults to home = /root
+  ausr:     # defaults to home = /home/ausr
+  nova:
+    home: "/var/lib/nova"
+```
 
 ##### `ssh_private_key`
 
@@ -56,7 +113,7 @@ Default: null
 
 Data type: `Optional[ String ]`
 
-Add this public key to all specified users and users' authorized_keys file.
+Add this public key to all specified users' authorized_keys file.
 If null, it is assumed user(s) will manage their own keys.
 Default: null
 
